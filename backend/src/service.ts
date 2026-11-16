@@ -24,12 +24,6 @@ const admView = (r: Registration) => ({ id: r.id, eventId: r.eventId, name: r.na
   ecPhone: r.ecPhone, answers: r.answers, submittedAt: r.submittedAt, status: r.status, reason: r.reason, checkedInAt: r.checkedInAt });
 const part = (r: Registration) => ({ id: r.id, eventId: r.eventId, name: r.name, phoneMasked: mask(r.phone), status: r.status, checkedInAt: r.checkedInAt });
 
-/** Accepts only plain https URLs: no whitespace, quotes, angle brackets, backslashes or other schemes (blocks javascript: and attribute injection). */
-const httpsUrl = (v: unknown): string | null => {
-  if (typeof v !== 'string' || v.length > 2000 || /[\s"'<>`\\]/.test(v)) return null;
-  try { const u = new URL(v); return u.protocol === 'https:' ? u.href : null; } catch { return null; }
-};
-const MAXLEN: Record<string, number> = { name: 150, description: 5000, venue: 300, address: 300, terms: 10000 };
 const validDateOnly = (s: string, today = new Date()) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); if (!m) return false; const y=Number(m[1]), mo=Number(m[2]), d=Number(m[3]); const dt=new Date(Date.UTC(y,mo-1,d)); return y>=1900 && dt.getUTCFullYear()===y && dt.getUTCMonth()===mo-1 && dt.getUTCDate()===d && dt.getTime()<=today.getTime(); };
 
 export function createService(repo: Repo, opts: { now?: () => Date } = {}) {
@@ -94,31 +88,6 @@ export function createService(repo: Repo, opts: { now?: () => Date } = {}) {
     }
   };
 
-  function evPatch(b: any, create: boolean) {
-    const f: Record<string, string> = {}, o: Record<string, any> = {};
-    for (const k of ['name', 'description', 'venue', 'address', 'terms']) {
-      if (b?.[k] === undefined) { if (create) f[k] = 'Required'; } else if (typeof b[k] !== 'string' || !b[k].trim()) f[k] = 'Invalid'; else if (b[k].length > MAXLEN[k]) f[k] = 'Too long'; else o[k] = b[k].trim();
-    }
-    if (b?.mapUrl !== undefined) { if (b.mapUrl === '' || b.mapUrl === null) o.mapUrl = ''; else { const u = httpsUrl(typeof b.mapUrl === 'string' ? b.mapUrl.trim() : b.mapUrl); if (u) o.mapUrl = u; else f.mapUrl = 'Must be an https:// link'; } }
-    for (const k of ['startsAt', 'regOpensAt', 'regClosesAt']) {
-      if (b?.[k] === undefined) { if (create) f[k] = 'Required'; } else if (isNaN(+new Date(b[k]))) f[k] = 'Invalid date'; else o[k] = new Date(b[k]).toISOString();
-    }
-    if (b?.capacity === undefined) { if (create) f.capacity = 'Required'; } else if (!Number.isInteger(b.capacity) || b.capacity < 1) f.capacity = 'Must be a whole number of at least 1'; else o.capacity = b.capacity;
-    for (const k of ['published']) if (b?.[k] !== undefined) { if (typeof b[k] === 'boolean') o[k] = b[k]; else f[k] = 'Invalid'; }
-    if (b?.fields !== undefined) {
-      const ok = Array.isArray(b.fields) && b.fields.length <= 30 && b.fields.every((x: any) => x && typeof x.k === 'string' && /^[A-Za-z0-9_]{1,40}$/.test(x.k) && typeof x.l === 'string' && x.l.trim().length > 0 && x.l.length <= 120 && !/[<>]/.test(x.l) && (x.req === undefined || typeof x.req === 'boolean')) && new Set(b.fields.map((x: any) => x.k)).size === b.fields.length;
-      if (ok) o.fields = b.fields.map((x: CustomField) => ({ k: x.k, l: x.l.trim(), req: x.req !== false })); else f.fields = 'Use up to 30 unique questions; each needs a safe key and a label of 1–120 characters';
-    }
-    if (b?.coverImage !== undefined) {
-      if (b.coverImage === null || b.coverImage === '') o.coverImage = null;
-      else { const v = typeof b.coverImage === 'string' ? b.coverImage.trim() : ''; const parts = v.split('/').slice(2); const local = /^\/assets\/[A-Za-z0-9._/-]+$/.test(v) && parts.length > 0 && parts.every((x: string) => x && x !== '.' && x !== '..'); if (local) o.coverImage = v; else f.coverImage = 'Use a static /assets/... path'; }
-    }
-    if (Object.keys(f).length) throw E.validation(f);
-    return o;
-  }
-  const checkWindow = (e: { regOpensAt: string; regClosesAt: string }) => {
-    if (+new Date(e.regOpensAt) >= +new Date(e.regClosesAt)) throw E.validation({ regClosesAt: 'Must be after registration opens' });
-  };
 
   return {
     /* ---------- auth ---------- */

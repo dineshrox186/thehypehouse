@@ -32,7 +32,7 @@ const formatWhen=(value:string,timeZone:string)=>{
   try{return new Intl.DateTimeFormat('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'numeric',minute:'2-digit',timeZone}).format(new Date(value));}
   catch{return 'To be announced';}
 };
-export async function render(row:OutboxRow,reg:Registration,event:EventRow,options:{eventTimezone?:string;ticketUrl?:string}={}):Promise<Mail>{
+export async function render(row:OutboxRow,reg:Registration,event:EventRow,options:{eventTimezone?:string}={}):Promise<Mail>{
   const date=event.startsAt?formatWhen(event.startsAt,options.eventTimezone??'Asia/Kolkata'):'To be announced';
   const token=typeof row.payload.token==='string'?row.payload.token:'';
   const attachQr=Boolean(token&&(row.template==='approved'||row.template==='event_tomorrow'));
@@ -59,7 +59,7 @@ export async function render(row:OutboxRow,reg:Registration,event:EventRow,optio
   if(attachQr)mail.attachments=[{filename:'entry-qr.png',contentType:'image/png',content:await QRCode.toBuffer(token,{type:'png',width:360,margin:2,errorCorrectionLevel:'M'})}];
   return mail;
 }
-export async function processOutbox(repo:Repo,mailer:Mailer,limit=25,options:{eventTimezone?:string;ticketUrl?:string}={}):Promise<number>{
+export async function processOutbox(repo:Repo,mailer:Mailer,limit=25,options:{eventTimezone?:string}={}):Promise<number>{
   const rows=await repo.claimOutbox(limit);let sent=0;
   for(const row of rows){
     try{

@@ -24,7 +24,7 @@ export async function buildApp(env:Env){
   }
   if(env.RESEND_API_KEY&&!env.MAIL_FROM)throw new Error('MAIL_FROM is required when RESEND_API_KEY is set');
   const mailer=env.RESEND_API_KEY?new ResendMailer(env.RESEND_API_KEY,env.MAIL_FROM!):new ConsoleMailer();
-  const service=createService(repo),mailOptions={eventTimezone:env.EVENT_TIMEZONE||'Asia/Kolkata',ticketUrl:env.TICKET_URL};
+  const service=createService(repo),mailOptions={eventTimezone:env.EVENT_TIMEZONE||'Asia/Kolkata'};
   const runOutbox=()=>processOutbox(repo,mailer,25,mailOptions);
   const kick=async()=>{let timeout:any;try{await Promise.race([runOutbox(),new Promise(resolve=>{timeout=setTimeout(resolve,4000);})]);}finally{clearTimeout(timeout);}};
   const http:HttpOpts={

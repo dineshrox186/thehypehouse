@@ -25,7 +25,6 @@ Production environment variables:
 - TURNSTILE_SECRET
 - RESEND_API_KEY and MAIL_FROM (verified sender)
 - CRON_SECRET
-- TICKET_URL
 - EVENT_TIMEZONE=Asia/Kolkata (optional; this is the default)
 
 Create the first admin by setting REPO=pg, DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD (12+ characters), and optionally ADMIN_NAME, then running npm run create-admin.
@@ -45,3 +44,7 @@ There are no event create/edit/publish endpoints.
 Run npm run typecheck, npm test and npm run build. Verify login, role checks, Secure + HttpOnly cookie, X-HypeHouse-CSRF: 1 for authenticated writes, Turnstile failures, registration rate limiting, approval/rejection mail, QR lookup and duplicate check-in. Verify anonymous and authenticated Supabase API roles cannot read backend tables.
 
 Supabase recommends RLS on exposed tables plus explicit revocation of existing Data API role grants for backend-only storage. The migration follows this model. See https://supabase.com/docs/guides/database/postgres/row-level-security.
+
+## Cookie domain note
+
+The frontend origin in CORS must match the public site exactly. Prefer placing the API on a subdomain of the same custom domain as the website (for example, `www.example.com` and `api.example.com`) so the session cookie remains same-site. When the frontend and API are hosted on unrelated Vercel hostnames, set `COOKIE_SAME_SITE=None` and keep `SECURE_COOKIES=1`; browsers may still restrict third-party cookies, so a shared custom domain or same-origin API proxy is preferred.
