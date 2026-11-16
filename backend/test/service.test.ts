@@ -45,3 +45,30 @@ test('parallel approvals cannot exceed hardcoded event capacity',async()=>{
     assert.equal((await repo.listRegistrations({eventId:event.id})).filter(row=>row.status==='approved').length,1);
   }finally{Object.assign(event,original);}
 });
+test('public application can be approved and checked in with an Hype House QR token',async()=>{
+  const repo=new MemoryRepo(),service=createService(repo),event=EVENTS[0],original={...event};
+  event.registrationEnabled=true;
+  event.capacity=10;
+  event.regOpensAt=new Date(Date.now()-60_000).toISOString();
+  event.regClosesAt=new Date(Date.now()+3_600_000).toISOString();
+  event.startsAt=new Date(Date.now()+2*86_400_000).toISOString();
+  try{
+    const application=await service.submitRegistration(event.id,{
+      name:'Test Participant',dob:'2000-01-01',email:'participant@example.com',phone:'9876543210',
+      ecName:'Emergency Contact',ecPhone:'9876543211',terms:true,mail:true,
+      answers:{institution:'Test College',grade:'11',paymentId:'HYPE-UTR-001',instagramUsername:'@participant'}
+    });
+    assert.match(application.id,/^HH-\d+$/);
+    assert.equal(application.status,'pending');
+    const admin={id:'00000000-0000-4000-8000-000000000003',email:'admin@hypehouse.test',name:'Admin',passwordHash:'',role:'admin' as const,active:true};
+    const reviewed=await service.review(admin,application.id,'approved');
+    assert.equal(reviewed.status,'approved');
+    const qrToken=String(repo.state.outbox.find(row=>row.template==='approved')?.payload.token ?? '');
+    assert.ok(qrToken.length>10);
+    assert.equal((await service.checkinLookup(admin,qrToken)).id,application.id);
+    const checked=await service.checkIn(admin,application.id);
+    assert.equal(checked.participant.status,'approved');
+    assert.equal(checked.stats.checkedIn,1);
+    await assert.rejects(()=>service.checkIn(admin,application.id),(error:any)=>error.code==='duplicate');
+  }finally{Object.assign(event,original);}
+});
