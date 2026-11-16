@@ -9,7 +9,14 @@ export class ConsoleMailer implements Mailer {
   async send(mail:Mail){this.sent.push(mail);if(!this.quiet)console.log('[mail] to='+mail.to+' subject="'+mail.subject+'"');}
 }
 export class ResendMailer implements Mailer {
-  constructor(public apiKey:string,public from:string,public fetchImpl:typeof fetch=(...args)=>fetch(...args)){}
+  apiKey:string;
+  from:string;
+  fetchImpl:typeof fetch;
+  constructor(apiKey:string,from:string,fetchImpl:typeof fetch=(...args)=>fetch(...args)){
+    this.apiKey=apiKey;
+    this.from=from;
+    this.fetchImpl=fetchImpl;
+  }
   async send(mail:Mail){
     const attachments=mail.attachments?.map(item=>({filename:item.filename,content_type:item.contentType,content:item.content.toString('base64')}));
     const response=await this.fetchImpl('https://api.resend.com/emails',{
