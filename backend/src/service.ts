@@ -151,6 +151,7 @@ export function createService(repo: Repo, opts: { now?: () => Date } = {}) {
         const ev = getEvent(eventId);
         if (!ev || !ev.published) throw E.notFound('Event not found');
         if (!ev.registrationEnabled || !ev.regOpensAt || !ev.regClosesAt) throw E.closed();
+        await r.lockEvent(ev.id);
         const t = now().getTime();
         if (t < +new Date(ev.regOpensAt) || t > +new Date(ev.regClosesAt)) throw E.closed();
         const d = validateReg(ev, body, true);
@@ -194,7 +195,9 @@ export function createService(repo: Repo, opts: { now?: () => Date } = {}) {
         let token = '', approvedEvent: EventRow | null = null;
         if (decision === 'approved') {
           approvedEvent = getEvent(reg.eventId);
-          if (!approvedEvent || (await approvedCount(r, approvedEvent.id)) >= approvedEvent.capacity) throw E.conflict('full', 'No places remain for this event');
+          if (!approvedEvent) throw E.conflict('event_unavailable', 'The hardcoded event configuration is unavailable');
+          await r.lockEvent(approvedEvent.id);
+          if ((await approvedCount(r, approvedEvent.id)) >= approvedEvent.capacity) throw E.conflict('full', 'No places remain for this event');
           token = randomBytes(16).toString('base64url'); reg.qrTokenHash = sha(token);
         }
         reg.status = decision; reg.reason = decision === 'rejected' ? why : ''; reg.reviewedBy = u.id; reg.reviewedAt = iso();
@@ -210,6 +213,7 @@ export function createService(repo: Repo, opts: { now?: () => Date } = {}) {
       return withPaymentIdConflict(() => repo.tx(async r => {
         const ev = getEvent(eventId); if (!ev) throw E.notFound('Event not found');
         if (!ev.registrationEnabled || ev.capacity < 1) throw E.closed();
+        await r.lockEvent(ev.id);
         const d = validateReg(ev, body, false, true); await checkRoom(r, ev, d.answers.paymentId ?? '');
         const reg = await newReg(r, ev, d, 'approved', false, u.id), token = randomBytes(16).toString('base64url');
         reg.qrTokenHash = sha(token); await r.saveRegistration(reg);
