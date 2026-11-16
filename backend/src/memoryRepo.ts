@@ -5,6 +5,7 @@ export class MemoryRepo {
  chain:Promise<unknown>=Promise.resolve();
  tx<T>(fn:(r:Repo)=>Promise<T>):Promise<T>{const run=async()=>{const snapshot=structuredClone(this.state);try{return await fn(this as unknown as Repo)}catch(e){this.state=snapshot;throw e}};const p=this.chain.then(run,run);this.chain=p.catch(()=>{});return p;}
  async consumeRateLimit(key:string,max:number,windowMs:number){const now=Date.now(),old=this.state.limits.get(key),next=!old||now-old.start>=windowMs?{start:now,count:1}:{start:old.start,count:old.count+1};this.state.limits.set(key,next);return next.count>max;}
+ async lockEvent(_eventId:string){/* tx() serializes in-memory writes */}
  async nextRegistrationId(){return 'HH-'+ ++this.state.seq;}
  async getRegistration(id:string){return copy(this.state.regs.get(id)??null);}
  async listRegistrations(f?:{eventId?:string}){return [...this.state.regs.values()].filter(x=>!f?.eventId||x.eventId===f.eventId).map(copy);}
