@@ -1,0 +1,20 @@
+CREATE SEQUENCE IF NOT EXISTS reg_seq START 1001;
+CREATE TABLE users (id uuid PRIMARY KEY,email text NOT NULL,name text NOT NULL,password_hash text NOT NULL,role text NOT NULL CHECK(role IN ('staff','organiser','admin')),active boolean NOT NULL DEFAULT true,created_at timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX users_email_key ON users(lower(email));
+CREATE TABLE sessions (id text PRIMARY KEY,user_id uuid NOT NULL REFERENCES users ON DELETE CASCADE,expires_at timestamptz NOT NULL);
+CREATE INDEX sessions_user_id_idx ON sessions(user_id);
+-- Event definitions are hardcoded in src/events.ts. event_id intentionally has no events-table foreign key.
+CREATE TABLE registrations (id text PRIMARY KEY,event_id text NOT NULL,name text NOT NULL,email text NOT NULL,phone text NOT NULL,dob date NOT NULL,ec_name text NOT NULL,ec_phone text NOT NULL,answers jsonb NOT NULL DEFAULT '{}',consent_terms boolean NOT NULL,consent_marketing boolean NOT NULL DEFAULT false,status text NOT NULL CHECK(status IN ('pending','approved','rejected')),reason text,submitted_at timestamptz NOT NULL DEFAULT now(),reviewed_by uuid REFERENCES users,reviewed_at timestamptz,qr_token_hash text UNIQUE,checked_in_at timestamptz,checked_in_by uuid REFERENCES users,CHECK(status<>'rejected' OR coalesce(reason,'')<>''),CHECK(checked_in_at IS NULL OR status='approved'));
+CREATE INDEX registrations_event_status ON registrations(event_id,status);
+CREATE INDEX registrations_reviewed_by_idx ON registrations(reviewed_by);
+CREATE INDEX registrations_checked_in_by_idx ON registrations(checked_in_by);
+CREATE UNIQUE INDEX registrations_payment_id_unique ON registrations(upper(btrim(answers->>'paymentId'))) WHERE NULLIF(btrim(answers->>'paymentId'),'') IS NOT NULL;
+CREATE TABLE email_outbox (id uuid PRIMARY KEY,registration_id text NOT NULL REFERENCES registrations ON DELETE CASCADE,template text NOT NULL CHECK(template IN ('received','approved','rejected','event_tomorrow','thank_you')),payload jsonb NOT NULL DEFAULT '{}',status text NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','sent','failed')),attempts int NOT NULL DEFAULT 0,last_error text,created_at timestamptz NOT NULL DEFAULT now(),sent_at timestamptz,scheduled_at timestamptz);
+CREATE INDEX email_outbox_registration_id_idx ON email_outbox(registration_id);
+CREATE INDEX email_outbox_due ON email_outbox(scheduled_at,created_at) WHERE status='queued';
+CREATE TABLE audit_log (id uuid PRIMARY KEY,actor_id uuid,action text NOT NULL,subject_type text NOT NULL,subject_id text NOT NULL,meta jsonb NOT NULL DEFAULT '{}',at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX audit_log_at_idx ON audit_log(at DESC,id DESC);
+CREATE INDEX audit_log_action_at_idx ON audit_log(action,at DESC);
+CREATE INDEX audit_log_actor_at_idx ON audit_log(actor_id,at DESC);
+CREATE TABLE api_rate_limits (bucket_key text PRIMARY KEY,window_started_at timestamptz NOT NULL,hit_count integer NOT NULL CHECK(hit_count>0));
+CREATE INDEX api_rate_limits_window_idx ON api_rate_limits(window_started_at);
