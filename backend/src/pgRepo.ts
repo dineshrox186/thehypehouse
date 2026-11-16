@@ -32,6 +32,7 @@ class PgRepo {
     if (++rateLimitCleanup % 1000 === 0) await this.q(`DELETE FROM api_rate_limits WHERE window_started_at < now() - interval '1 day'`);
     return Number(r.rows[0].hit_count) > max;
   }
+  async lockEvent(eventId: string) { await this.q(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, [eventId]); }
   async nextRegistrationId() { return (await this.q(`SELECT 'HH-'||nextval('reg_seq') AS id`)).rows[0].id as string; }
   async getRegistration(id: string, lock = false) { const r = await this.q(`SELECT ${RG} FROM registrations WHERE id=$1${lock ? ' FOR UPDATE' : ''}`, [id]); return r.rows[0] ? rg(r.rows[0]) : null; }
   async listRegistrations(f?: { eventId?: string }) { const r = f?.eventId ? await this.q(`SELECT ${RG} FROM registrations WHERE event_id=$1`, [f.eventId]) : await this.q(`SELECT ${RG} FROM registrations`); return r.rows.map(rg); }
