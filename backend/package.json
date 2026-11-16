@@ -1,0 +1,18 @@
+{
+  "name": "thehypehouse-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "start": "node --experimental-strip-types src/main.ts",
+    "migrate": "node --experimental-strip-types src/migrate.ts",
+    "build": "node --no-warnings scripts/build.mjs",
+    "start:dist": "node dist/main.js",
+    "create-admin": "node --experimental-strip-types --no-warnings src/create-admin.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": { "pg": "8.13.0", "qrcode": "1.5.4" },
+  "devDependencies": { "typescript": "5.9.3", "@types/node": "22.19.1", "@types/pg": "8.11.10", "@types/qrcode": "1.5.5" }
+}
