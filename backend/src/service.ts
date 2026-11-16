@@ -141,7 +141,7 @@ export function createService(repo: Repo, opts: { now?: () => Date } = {}) {
     me: (actor: User | null) => pubUser(need(actor, ALL)),
 
     /* ---------- public ---------- */
-    async listPublicEvents() { return withCounts(repo, EVENTS.filter(e => e.published).sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt))); },
+    async listPublicEvents() { return withCounts(repo, EVENTS.filter(e => e.published).sort((a, b) => (a.startsAt ? +new Date(a.startsAt) : Number.MAX_SAFE_INTEGER) - (b.startsAt ? +new Date(b.startsAt) : Number.MAX_SAFE_INTEGER))); },
     async getPublicEvent(id: string) {
       const e = getEvent(id); if (!e || !e.published) throw E.notFound('Event not found');
       return (await withCounts(repo, [{ ...e, fields: applicationFields(e.fields) }]))[0];
@@ -167,7 +167,7 @@ export function createService(repo: Repo, opts: { now?: () => Date } = {}) {
       need(actor, ORG);
       const regs = await repo.listRegistrations(), evs = EVENTS, n = (s: string) => regs.filter(x => x.status === s).length;
       const approved = n('approved'), checkedIn = regs.filter(x => x.status === 'approved' && x.checkedInAt).length;
-      return { events: evs.length, upcoming: evs.filter(e => +new Date(e.startsAt) > now().getTime()).length, registrations: regs.length,
+      return { events: evs.length, upcoming: evs.filter(e => e.startsAt !== null && +new Date(e.startsAt) > now().getTime()).length, registrations: regs.length,
         pending: n('pending'), approved, rejected: n('rejected'), checkedIn, attendance: approved ? Math.round(checkedIn / approved * 100) : 0 };
     },
     async listApplications(actor: User | null, q: { eventId?: string; status?: string; q?: string; sort?: string; limit?: number; cursor?: string } = {}) {
