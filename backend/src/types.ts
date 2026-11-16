@@ -23,6 +23,7 @@ export interface AuditRow { id: string; actorId: string | null; actorName?: stri
 export interface Repo {
   tx<T>(fn: (r: Repo) => Promise<T>): Promise<T>;
   consumeRateLimit(key: string, max: number, windowMs: number): Promise<boolean>;
+  lockEvent(eventId: string): Promise<void>;
   nextRegistrationId(): Promise<string>;
   getRegistration(id: string, lock?: boolean): Promise<Registration | null>;
   listRegistrations(f?: { eventId?: string }): Promise<Registration[]>;
