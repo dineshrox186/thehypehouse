@@ -110,7 +110,7 @@ export function createHandler(svc: Service, opts: HttpOpts = {}) {
     const origin = req.headers.origin;
     if (origin && origins.includes(origin)) {
       res.setHeader('access-control-allow-origin', origin); res.setHeader('access-control-allow-credentials', 'true'); res.setHeader('vary', 'origin');
-      res.setHeader('access-control-allow-headers', 'content-type,x-hypehouse-csrf'); res.setHeader('access-control-allow-methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.setHeader('access-control-allow-headers', 'content-type,x-hypehouse-csrf,x-turnstile-token'); res.setHeader('access-control-allow-methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     }
     if (req.method === 'OPTIONS') return send(res, 204);
     try {
